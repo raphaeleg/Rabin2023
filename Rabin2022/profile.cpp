@@ -11,89 +11,89 @@
 
 #include <vector>
 struct ProfileSample {
-	unsigned int iProfileInstances; // # of times ProfileBegin called
-	int iOpenProfiles;              // # of times ProfileBegin w/o ProfileEnd
-	std::string szName{};               // Name of sample
-	float fStartTime;               // The current open profile start time
-	float fAccumulator;             // All samples this frame added together
-	float fChildrenSampleTime;      // Time taken by all children
-	unsigned int iNumParents;       // Number of profile parents
+	unsigned int instances; // # of times ProfileBegin called
+	int openProfiles;              // # of times ProfileBegin w/o ProfileEnd
+	std::string name{};               // Name of sample
+	float startTime;               // The current open profile start time
+	float accumulator;             // All samples this frame added together
+	float childrenSampleTime;      // Time taken by all children
+	unsigned int numParents;       // Number of profile parents
 };
 
 struct ProfileSampleHistory {
-	std::string szName{}; // Name of the sample
-	float fAve;       // Average time per frame (percentage)
-	float fMin;       // Minimum time per frame (percentage)
-	float fMax;       // Maximum time per frame (percentage)
+	std::string name{}; // Name of the sample
+	float ave;       // Average time per frame (percentage)
+	float min;       // Minimum time per frame (percentage)
+	float max;       // Maximum time per frame (percentage)
 };
 std::vector<ProfileSample> samples;
 std::vector <ProfileSampleHistory> history;
-float g_startProfile = 0.0f;
-float g_endProfile = 0.0f;
+float startProfile = 0.0f;
+float endProfile = 0.0f;
 std::string textBox = "";
 void Profile::Init() noexcept {
-	g_startProfile = GetExactTime();
+	startProfile = GetExactTime();
 }
 void Profile::Begin(std::string_view name) noexcept {
 	for (auto& sample : samples) {
-		if (name == sample.szName) {
+		if (name == sample.name) {
 			// Found the sample
-			sample.iOpenProfiles++;
-			sample.iProfileInstances++;
-			sample.fStartTime = GetExactTime();
-			assert(sample.iOpenProfiles == 1); // max 1 open at once
+			sample.openProfiles++;
+			sample.instances++;
+			sample.startTime = GetExactTime();
+			assert(sample.openProfiles == 1); // max 1 open at once
 			return;
 		}
 	}
 
 	ProfileSample sample;
-	sample.szName = name;
-	sample.iOpenProfiles = 1;
-	sample.iProfileInstances = 1;
-	sample.fAccumulator = 0.0f;
-	sample.fStartTime = GetExactTime();
-	sample.fChildrenSampleTime = 0.0f;
+	sample.name = name;
+	sample.openProfiles = 1;
+	sample.instances = 1;
+	sample.accumulator = 0.0f;
+	sample.startTime = GetExactTime();
+	sample.childrenSampleTime = 0.0f;
 	samples.push_back(sample);
 }
 void Profile::End(std::string_view name) noexcept {
 	unsigned int numParents = 0;
 
 	for (auto& sample : samples) {
-		if (name == sample.szName) { // Found the sample
+		if (name == sample.name) { // Found the sample
 			unsigned int inner = 0;
 			int parent = -1;
 			float fEndTime = GetExactTime();
-			sample.iOpenProfiles--;
+			sample.openProfiles--;
 
 			// Count all parents and find the immediate parent
 			for (int inner = 0; inner < samples.size(); inner++) {
-				if (samples[inner].iOpenProfiles > 0) { // Found a parent (any open profiles are parents)
+				if (samples[inner].openProfiles > 0) { // Found a parent (any open profiles are parents)
 					numParents++;
 					if (parent < 0) { // Replace invalid parent (index)
 						parent = inner;
 					}
-					else if (samples[inner].fStartTime >= samples[parent].fStartTime) { // Replace with more immediate parent
+					else if (samples[inner].startTime >= samples[parent].startTime) { // Replace with more immediate parent
 						parent = inner;
 					}
 				}
 			}
 
 			// Remember the current number of parents of the sample
-			sample.iNumParents = numParents;
+			sample.numParents = numParents;
 
-			if (parent >= 0) { // Record this time in fChildrenSampleTime (add it in)
-				samples[parent].fChildrenSampleTime += fEndTime - sample.fStartTime;
+			if (parent >= 0) { // Record this time in childrenSampleTime (add it in)
+				samples[parent].childrenSampleTime += fEndTime - sample.startTime;
 			}
 
 			// Save sample time in accumulator
-			sample.fAccumulator += fEndTime - sample.fStartTime;
+			sample.accumulator += fEndTime - sample.startTime;
 			return;
 		}
 	}
 }
 void Profile::DumpOutputToBuffer() noexcept {
 
-	g_endProfile = GetExactTime();
+	endProfile = GetExactTime();
 
 	textBox.clear();
 
@@ -105,37 +105,37 @@ void Profile::DumpOutputToBuffer() noexcept {
 		float sampleTime, percentTime, aveTime, minTime, maxTime;
 		std::string line, name, indentedName;
 
-		if (sample.iOpenProfiles < 0) {
+		if (sample.openProfiles < 0) {
 			assert(!"ProfileEnd() called without a ProfileBegin()");
 		}
-		else if (sample.iOpenProfiles > 0) {
+		else if (sample.openProfiles > 0) {
 			assert(!"ProfileBegin() called without a ProfileEnd()");
 		}
 
-		sampleTime = sample.fAccumulator - sample.fChildrenSampleTime;
-		percentTime = (sampleTime / (g_endProfile - g_startProfile)) * 100.0f;
+		sampleTime = sample.accumulator - sample.childrenSampleTime;
+		percentTime = (sampleTime / (endProfile - startProfile)) * 100.0f;
 
 		aveTime = minTime = maxTime = percentTime;
 
 		// Add new measurement into the history and get the ave, min, and max
-		StoreInHistory(sample.szName, percentTime);
-		GetFromHistory(sample.szName, &aveTime, &minTime, &maxTime);
+		StoreInHistory(sample.name, percentTime);
+		GetFromHistory(sample.name, &aveTime, &minTime, &maxTime);
 
 
-		indentedName = sample.szName;
-		for (indent = 0; indent < sample.iNumParents; indent++) {
+		indentedName = sample.name;
+		for (indent = 0; indent < sample.numParents; indent++) {
 			name = std::format("   {}", indentedName);
 			indentedName = name;
 		}
 
-		line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} : {}\n", aveTime, minTime, maxTime, sample.iProfileInstances,
+		line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} : {}\n", aveTime, minTime, maxTime, sample.instances,
 			indentedName);
 		textBox.append(line); // Send the line to text buffer
 	}
 
 	{ // Reset samples for next frame
 		samples.clear();
-		g_startProfile = GetExactTime();
+		startProfile = GetExactTime();
 	}
 }
 void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
@@ -147,40 +147,40 @@ void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
 	oldRatio = 1.0f - newRatio;
 
 	for (auto& his : history) {
-		if (name == his.szName) { // Found the sample
-			his.fAve = (his.fAve * oldRatio) + (percent * newRatio);
-			if (percent < his.fMin) {
-				his.fMin = percent;
+		if (name == his.name) { // Found the sample
+			his.ave = (his.ave * oldRatio) + (percent * newRatio);
+			if (percent < his.min) {
+				his.min = percent;
 			}
 			else {
-				his.fMin = (his.fMin * oldRatio) + (percent * newRatio);
+				his.min = (his.min * oldRatio) + (percent * newRatio);
 			}
 
-			if (his.fMin < 0.0f) {
-				his.fMin = 0.0f;
+			if (his.min < 0.0f) {
+				his.min = 0.0f;
 			}
 
-			if (percent > his.fMax) {
-				his.fMax = percent;
+			if (percent > his.max) {
+				his.max = percent;
 			}
 			else {
-				his.fMax = (his.fMax * oldRatio) + (percent * newRatio);
+				his.max = (his.max * oldRatio) + (percent * newRatio);
 			}
 			return;
 		}
 	}
 	ProfileSampleHistory his;
-	his.szName = name;
-	his.fAve = his.fMin = his.fMax = percent;
+	his.name = name;
+	his.ave = his.min = his.max = percent;
 	history.push_back(his);
-	
+
 }
 void Profile::GetFromHistory(std::string_view name, float* ave, float* min, float* max) noexcept {
 	for (auto& his : history) {
-		if (name == his.szName) { // Found the sample
-			*ave = his.fAve;
-			*min = his.fMin;
-			*max = his.fMax;
+		if (name == his.name) { // Found the sample
+			*ave = his.ave;
+			*min = his.min;
+			*max = his.max;
 			return;
 		}
 	}
