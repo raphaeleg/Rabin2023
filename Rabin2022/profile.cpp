@@ -2,15 +2,10 @@
 
 #include "profile.h"
 #include "custom_time.h"
-#include <iostream>
-#include <string>
-
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
-
 #include <vector>
 #include <algorithm>
+#include <cassert>
+#include <iostream>
 struct ProfileSample {
 	unsigned int instances; // # of times ProfileBegin called
 	int openProfiles;              // # of times ProfileBegin w/o ProfileEnd
@@ -19,8 +14,10 @@ struct ProfileSample {
 	float accumulator;             // All samples this frame added together
 	float childrenSampleTime;      // Time taken by all children
 	unsigned int numParents;       // Number of profile parents
+	ProfileSample(unsigned int i, int op, std::string_view n, float st, float a, float cst, unsigned int np) :
+		instances(i), openProfiles(op), name(n), startTime(st), accumulator(a), childrenSampleTime(cst), numParents(np)
+	{}
 };
-
 struct ProfileSampleHistory {
 	std::string name{}; // Name of the sample
 	float ave;       // Average time per frame (percentage)
@@ -28,13 +25,13 @@ struct ProfileSampleHistory {
 	float max;       // Maximum time per frame (percentage)
 	ProfileSampleHistory(std::string_view n, float a, float mn, float mx) : name(n), ave(a), min(mn), max(mx) {}
 };
-
 struct Measurements {
 	float ave;       // Average time per frame (percentage)
 	float min;       // Minimum time per frame (percentage)
 	float max;       // Maximum time per frame (percentage)
 	Measurements(float a, float mn, float mx) : ave(a), min(mn), max(mx) {}
 };
+
 std::vector<ProfileSample> samples;
 std::vector <ProfileSampleHistory> history;
 float startProfile = 0.0f;
@@ -64,18 +61,10 @@ void Profile::Begin(std::string_view name) noexcept {
 		sample.openProfiles++;
 		sample.instances++;
 		sample.startTime = GetExactTime();
-		assert(sample.openProfiles == 1); // max 1 open at once
+		assert(sample.openProfiles == 1);
 		return;
 	}
-
-	ProfileSample sample;
-	sample.name = name;
-	sample.openProfiles = 1;
-	sample.instances = 1;
-	sample.accumulator = 0.0f;
-	sample.startTime = GetExactTime();
-	sample.childrenSampleTime = 0.0f;
-	samples.push_back(sample);
+	samples.push_back(ProfileSample(1,1,name,GetExactTime(),0.0f,0.0f,0));
 }
 void Profile::End(std::string_view name) noexcept {
 	unsigned int numParents = 0;
@@ -126,18 +115,15 @@ void Profile::DumpOutputToBuffer() noexcept {
 
 		float sampleTime = sample.accumulator - sample.childrenSampleTime;
 		float percentTime = (sampleTime / (endProfile - startProfile)) * 100.0f;
-		// Add new measurement into the history and get the ave, min, and max
 		Measurements measure = StoreInHistory(sample.name, percentTime);
 
 		std::string line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} :    {}\n", measure.ave, measure.min, measure.max, sample.instances, sample.name);
-		textBox.append(line); // Send the line to text buffer
+		textBox.append(line);
 	}
 
 	samples.clear();
 	startProfile = GetExactTime();
 }
 void Profile::Draw() noexcept {
-	if (!textBox.empty()) {
-		std::cout << textBox << "\n";
-	}
+	if (!textBox.empty()) { std::cout << textBox << "\n"; }
 }
