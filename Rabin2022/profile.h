@@ -14,10 +14,10 @@
 
 namespace Profile {
     void Init() noexcept;
-    void Begin(const char* name) noexcept;
-    void End(const char* name) noexcept;
+    void Begin(std::string_view name) noexcept;
+    void End(std::string_view name) noexcept;
     void DumpOutputToBuffer() noexcept;
-    void StoreInHistory(const char* name, float percent) noexcept;
-    void GetFromHistory(const char* name, float* ave, float* min, float* max) noexcept;
+    void StoreInHistory(std::string_view name, float percent) noexcept;
+    void GetFromHistory(std::string_view name, float* ave, float* min, float* max) noexcept;
     void Draw() noexcept;
 };

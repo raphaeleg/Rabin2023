@@ -12,7 +12,7 @@ struct ProfileSample {
 	bool bValid;                    // Whether this data is valid
 	unsigned int iProfileInstances; // # of times ProfileBegin called
 	int iOpenProfiles;              // # of times ProfileBegin w/o ProfileEnd
-	char szName[256];               // Name of sample
+	std::string szName{};               // Name of sample
 	float fStartTime;               // The current open profile start time
 	float fAccumulator;             // All samples this frame added together
 	float fChildrenSampleTime;      // Time taken by all children
@@ -21,7 +21,7 @@ struct ProfileSample {
 
 struct ProfileSampleHistory {
 	bool bValid;      // Whether the data is valid
-	char szName[256]; // Name of the sample
+	std::string szName{}; // Name of the sample
 	float fAve;       // Average time per frame (percentage)
 	float fMin;       // Minimum time per frame (percentage)
 	float fMax;       // Maximum time per frame (percentage)
@@ -42,11 +42,11 @@ void Profile::Init() noexcept {
 
 	g_startProfile = GetExactTime();
 }
-void Profile::Begin(const char* name) noexcept {
+void Profile::Begin(std::string_view name) noexcept {
 	unsigned int i = 0;
 
 	while (i < NUM_PROFILE_SAMPLES && g_samples[i].bValid == true) {
-		if (strcmp(g_samples[i].szName, name) == 0) {
+		if (name == g_samples[i].szName) {
 			// Found the sample
 			g_samples[i].iOpenProfiles++;
 			g_samples[i].iProfileInstances++;
@@ -62,7 +62,7 @@ void Profile::Begin(const char* name) noexcept {
 		return;
 	}
 
-	strcpy(g_samples[i].szName, name);
+	g_samples[i].szName = name;
 	g_samples[i].bValid = true;
 	g_samples[i].iOpenProfiles = 1;
 	g_samples[i].iProfileInstances = 1;
@@ -70,12 +70,12 @@ void Profile::Begin(const char* name) noexcept {
 	g_samples[i].fStartTime = GetExactTime();
 	g_samples[i].fChildrenSampleTime = 0.0f;
 }
-void Profile::End(const char* name) noexcept {
+void Profile::End(std::string_view name) noexcept {
 	unsigned int i = 0;
 	unsigned int numParents = 0;
 
 	while (i < NUM_PROFILE_SAMPLES && g_samples[i].bValid == true) {
-		if (strcmp(g_samples[i].szName, name) == 0) { // Found the sample
+		if (name == g_samples[i].szName) { // Found the sample
 			unsigned int inner = 0;
 			int parent = -1;
 			float fEndTime = GetExactTime();
@@ -126,8 +126,7 @@ void Profile::DumpOutputToBuffer() noexcept {
 	while (i < NUM_PROFILE_SAMPLES && g_samples[i].bValid == true) {
 		unsigned int indent = 0;
 		float sampleTime, percentTime, aveTime, minTime, maxTime;
-		char line[256], name[256], indentedName[256];
-		char ave[16], min[16], max[16], num[16];
+		std::string line, name, indentedName;
 
 		if (g_samples[i].iOpenProfiles < 0) {
 			assert(!"ProfileEnd() called without a ProfileBegin()");
@@ -145,19 +144,14 @@ void Profile::DumpOutputToBuffer() noexcept {
 		StoreInHistory(g_samples[i].szName, percentTime);
 		GetFromHistory(g_samples[i].szName, &aveTime, &minTime, &maxTime);
 
-		// Format the data
-		sprintf(ave, "%3.1f", aveTime);
-		sprintf(min, "%3.1f", minTime);
-		sprintf(max, "%3.1f", maxTime);
-		sprintf(num, "%3d", g_samples[i].iProfileInstances);
 
-		strcpy(indentedName, g_samples[i].szName);
+		indentedName = g_samples[i].szName;
 		for (indent = 0; indent < g_samples[i].iNumParents; indent++) {
-			sprintf(name, "   %s", indentedName);
-			strcpy(indentedName, name);
+			name = std::format("   {}", indentedName);
+			indentedName = name;
 		}
 
-		sprintf(line, "%5s : %5s : %5s : %3s : %s\n", ave, min, max, num,
+		line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} : {}\n", aveTime, minTime, maxTime, g_samples[i].iProfileInstances,
 			indentedName);
 		textBox.append(line); // Send the line to text buffer
 		i++;
@@ -171,7 +165,7 @@ void Profile::DumpOutputToBuffer() noexcept {
 		g_startProfile = GetExactTime();
 	}
 }
-void Profile::StoreInHistory(const char* name, float percent) noexcept {
+void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
 	unsigned int i = 0;
 	float oldRatio;
 	float newRatio = 0.8f * GetElapsedTime();
@@ -181,7 +175,7 @@ void Profile::StoreInHistory(const char* name, float percent) noexcept {
 	oldRatio = 1.0f - newRatio;
 
 	while (i < NUM_PROFILE_SAMPLES && g_history[i].bValid == true) {
-		if (strcmp(g_history[i].szName, name) == 0) { // Found the sample
+		if (name == g_history[i].szName) { // Found the sample
 			g_history[i].fAve = (g_history[i].fAve * oldRatio) + (percent * newRatio);
 			if (percent < g_history[i].fMin) {
 				g_history[i].fMin = percent;
@@ -208,7 +202,7 @@ void Profile::StoreInHistory(const char* name, float percent) noexcept {
 	}
 
 	if (i < NUM_PROFILE_SAMPLES) { // Add to history
-		strcpy(g_history[i].szName, name);
+		g_history[i].szName = name;
 		g_history[i].bValid = true;
 		g_history[i].fAve = g_history[i].fMin = g_history[i].fMax = percent;
 	}
@@ -216,10 +210,10 @@ void Profile::StoreInHistory(const char* name, float percent) noexcept {
 		assert(!"Exceeded Max Available Profile Samples!");
 	}
 }
-void Profile::GetFromHistory(const char* name, float* ave, float* min, float* max) noexcept {
+void Profile::GetFromHistory(std::string_view name, float* ave, float* min, float* max) noexcept {
 	unsigned int i = 0;
 	while (i < NUM_PROFILE_SAMPLES && g_history[i].bValid == true) {
-		if (strcmp(g_history[i].szName, name) == 0) { // Found the sample
+		if (name == g_history[i].szName) { // Found the sample
 			*ave = g_history[i].fAve;
 			*min = g_history[i].fMin;
 			*max = g_history[i].fMax;
