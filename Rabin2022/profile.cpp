@@ -34,6 +34,11 @@ struct Measurements {
 
 	Measurements(float a, float mn, float mx) : ave(a), min(mn), max(mx) {}
 };
+std::vector<ProfileSample> samples;
+std::vector <ProfileSampleHistory> history;
+float startProfile = 0.0f;
+float endProfile = 0.0f;
+std::string textBox = "";
 static Measurements GetFromHistory(std::string_view name) noexcept {
 	for (auto& his : history) {
 		if (name == his.name) { // Found the sample
@@ -42,11 +47,6 @@ static Measurements GetFromHistory(std::string_view name) noexcept {
 	}
 	return Measurements(0.0f, 0.0f, 0.0f);
 }
-std::vector<ProfileSample> samples;
-std::vector <ProfileSampleHistory> history;
-float startProfile = 0.0f;
-float endProfile = 0.0f;
-std::string textBox = "";
 void Profile::Init() noexcept {
 	startProfile = GetExactTime();
 }
