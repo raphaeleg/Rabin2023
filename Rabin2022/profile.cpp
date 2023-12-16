@@ -40,12 +40,20 @@ std::vector <ProfileSampleHistory> history;
 float startProfile = 0.0f;
 float endProfile = 0.0f;
 std::string textBox = "";
-static Measurements GetFromHistory(std::string_view name) noexcept {
+
+static Measurements StoreInHistory(std::string_view name, float percent) noexcept {
+	float newRatio = std::clamp(0.8f * GetElapsedTime(), 0.0f, 1.0f);
+	float oldRatio = 1.0f - newRatio;
+
 	for (auto& his : history) {
 		if (name != his.name) { continue; }
+		his.ave = (his.ave * oldRatio) + (percent * newRatio);
+		his.min = std::clamp((his.min * oldRatio) + (percent * newRatio), 0.0f, percent);
+		his.max = std::clamp((his.max * oldRatio) + (percent * newRatio), 0.0f, percent);
 		return Measurements(his.ave, his.min, his.max);
 	}
-	return Measurements(0.0f, 0.0f, 0.0f);
+	history.push_back(ProfileSampleHistory(name, percent, percent, percent));
+	return Measurements(percent, percent, percent);
 }
 void Profile::Init() noexcept {
 	startProfile = GetExactTime();
@@ -101,7 +109,6 @@ void Profile::End(std::string_view name) noexcept {
 	}
 }
 void Profile::DumpOutputToBuffer() noexcept {
-
 	endProfile = GetExactTime();
 
 	textBox.clear();
@@ -120,38 +127,14 @@ void Profile::DumpOutputToBuffer() noexcept {
 		float sampleTime = sample.accumulator - sample.childrenSampleTime;
 		float percentTime = (sampleTime / (endProfile - startProfile)) * 100.0f;
 		// Add new measurement into the history and get the ave, min, and max
-		StoreInHistory(sample.name, percentTime);
-		Measurements measure = GetFromHistory(sample.name);
+		Measurements measure = StoreInHistory(sample.name, percentTime);
 
-		unsigned int indent = 0;
-		std::string name;
-		std::string indentedName = sample.name;
-		for (indent = 0; indent < sample.numParents; indent++) {
-			name = std::format("   {}", indentedName);
-			indentedName = name;
-		}
-
-		std::string line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} : {}\n", measure.ave, measure.min, measure.max, sample.instances,
-			indentedName);
+		std::string line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} :    {}\n", measure.ave, measure.min, measure.max, sample.instances, sample.name);
 		textBox.append(line); // Send the line to text buffer
 	}
 
 	samples.clear();
 	startProfile = GetExactTime();
-}
-void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
-	float newRatio = std::clamp(0.8f * GetElapsedTime(), 0.0f, 1.0f);
-	float oldRatio = 1.0f - newRatio;
-
-	for (auto& his : history) {
-		if (name != his.name) { continue; }
-		his.ave = (his.ave * oldRatio) + (percent * newRatio);
-		his.min = std::clamp((his.min * oldRatio) + (percent * newRatio), 0.0f, percent);
-		his.max = std::clamp((his.max * oldRatio) + (percent * newRatio), 0.0f, percent);
-		return;
-	}
-	history.push_back(ProfileSampleHistory(name, percent, percent, percent));
-
 }
 void Profile::Draw() noexcept {
 	if (!textBox.empty()) {
