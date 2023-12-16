@@ -18,6 +18,6 @@ namespace Profile {
     void End(const char* name) noexcept;
     void DumpOutputToBuffer() noexcept;
     void StoreInHistory(const char* name, float percent) noexcept;
-    void GetFromHistory(const char* name, float* ave, float* min, float* max);
+    void GetFromHistory(const char* name, float* ave, float* min, float* max) noexcept;
     void Draw() noexcept;
 };

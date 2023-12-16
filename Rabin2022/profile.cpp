@@ -216,8 +216,7 @@ void Profile::StoreInHistory(const char* name, float percent) noexcept {
 		assert(!"Exceeded Max Available Profile Samples!");
 	}
 }
-void Profile::GetFromHistory(const char* name, float* ave, float* min,
-	float* max) noexcept {
+void Profile::GetFromHistory(const char* name, float* ave, float* min, float* max) noexcept {
 	unsigned int i = 0;
 	while (i < NUM_PROFILE_SAMPLES && g_history[i].bValid == true) {
 		if (strcmp(g_history[i].szName, name) == 0) { // Found the sample
