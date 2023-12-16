@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-typedef struct {
+struct ProfileSample {
   bool bValid;                    // Whether this data is valid
   unsigned int iProfileInstances; // # of times ProfileBegin called
   int iOpenProfiles;              // # of times ProfileBegin w/o ProfileEnd
@@ -17,15 +17,15 @@ typedef struct {
   float fAccumulator;             // All samples this frame added together
   float fChildrenSampleTime;      // Time taken by all children
   unsigned int iNumParents;       // Number of profile parents
-} ProfileSample;
+};
 
-typedef struct {
+struct ProfileSampleHistory {
   bool bValid;      // Whether the data is valid
   char szName[256]; // Name of the sample
   float fAve;       // Average time per frame (percentage)
   float fMin;       // Minimum time per frame (percentage)
   float fMax;       // Maximum time per frame (percentage)
-} ProfileSampleHistory;
+};
 #define NUM_PROFILE_SAMPLES 50
 ProfileSample g_samples[NUM_PROFILE_SAMPLES];
 ProfileSampleHistory g_history[NUM_PROFILE_SAMPLES];
