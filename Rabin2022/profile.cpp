@@ -74,30 +74,35 @@ void Profile::Begin(std::string_view name) noexcept {
 	sample->startTime = GetExactTime();
 	assert(sample->openProfiles == 1);
 }
+auto& GetParentIndex() noexcept {
+	int parent = -1;
+	for (unsigned int inner = 0; inner < samples.size(); inner++) {
+		if (samples[inner].openProfiles > 0) { // Found a parent (any open profiles are parents)          
+			if (parent < 0) { // Replace invalid parent (index)
+				parent = inner;
+			}
+			else if (samples[inner].startTime >= samples[parent].startTime) { // Replace with more immediate parent
+				parent = inner;
+			}
+		}
+	}
+	return parent;
+}
 void Profile::End(std::string_view name) noexcept {
 	auto sample = std::ranges::find_if(samples,
 		[name](const ProfileSample& s) { return s.name == name; });
 	
 	if (sample == std::end(samples)) { return; }
-	float endTime = GetExactTime();
+	float duration = GetExactTime() - sample->startTime;
 	sample->openProfiles--;
+	sample->numParents = std::count_if(samples.begin(), samples.end(), [](auto& s) noexcept { s.openProfiles > 0; });
+	sample->accumulator += duration;
 
-	// Count all parents and find the immediate parent
-	unsigned int inner = 0;
-	int parent = -1;
-	unsigned int numParents = 0;
-	for (int inner = 0; inner < samples.size(); inner++) {
-		if (samples[inner].openProfiles <= 0) { continue; }
-		numParents++;
-		if (parent < 0) { parent = inner; }
-		else if (samples[inner].startTime >= samples[parent].startTime) { parent = inner; }
+	auto p = GetParentIndex();
+	if (p >= 0) { // Record this time in fChildrenSampleTime (add it in)
+		auto& parent = samples[p];
+		parent.childrenSampleTime += duration;
 	}
-
-	sample->numParents = numParents;
-	if (parent >= 0) { 
-		samples[parent].childrenSampleTime += endTime - sample->startTime;
-	}
-	sample->accumulator += endTime - sample->startTime;
 }
 void Profile::DumpOutputToBuffer() noexcept {
 	endProfile = GetExactTime();
