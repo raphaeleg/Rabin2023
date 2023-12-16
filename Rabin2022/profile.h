@@ -8,15 +8,16 @@
  * "Portions Copyright (C) Steve Rabin, 2000"
  */
 
-#ifndef _PROFILE_H
-#define _PROFILE_H
 
-void ProfileInit( void );
-void ProfileBegin( const char* name );
-void ProfileEnd(const char* name );
-void ProfileDumpOutputToBuffer( void );
-void StoreProfileInHistory( const char* name, float percent );
-void GetProfileFromHistory( const char* name, float* ave, float* min, float* max );
-void ProfileDraw( void );
+#pragma once
+#include <string_view>
 
-#endif
+namespace Profile {
+    void Init() noexcept;
+    void Begin(const char* name) noexcept;
+    void End(const char* name) noexcept;
+    void DumpOutputToBuffer() noexcept;
+    void StoreInHistory(const char* name, float percent) noexcept;
+    void GetFromHistory(const char* name, float* ave, float* min, float* max);
+    void Draw() noexcept;
+};

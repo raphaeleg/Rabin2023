@@ -10,23 +10,23 @@ void input() {  }
 void update() { std::this_thread::sleep_for(200ms); }
 void render() {
   std::this_thread::sleep_for(400ms);
-  ProfileDraw(); // output profiling text from last frame
+  Profile::Draw(); // output profiling text from last frame
 }
 
 int main() {
   bool exitGame = false;
   InitTime();
-  ProfileInit();
+  Profile::Init();
   while (!exitGame) {
-    ProfileBegin("Main Game Loop");
+    Profile::Begin("Main Game Loop");
         input();
         update();
-        ProfileBegin("Graphics Draw Routine");
+        Profile::Begin("Graphics Draw Routine");
             render();
-        ProfileEnd("Graphics Draw Routine");
-    ProfileEnd("Main Game Loop");
+        Profile::End("Graphics Draw Routine");
+    Profile::End("Main Game Loop");
     
-    ProfileDumpOutputToBuffer(); // buffer will be drawn next frame
+    Profile::DumpOutputToBuffer(); // buffer will be drawn next frame
   }
   return 0;
 }
