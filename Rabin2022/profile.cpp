@@ -35,8 +35,6 @@ void Profile::Init() noexcept {
 	g_startProfile = GetExactTime();
 }
 void Profile::Begin(std::string_view name) noexcept {
-	unsigned int i = 0;
-
 	for (auto& sample : samples) {
 		if (name == sample.szName) {
 			// Found the sample
@@ -46,7 +44,6 @@ void Profile::Begin(std::string_view name) noexcept {
 			assert(sample.iOpenProfiles == 1); // max 1 open at once
 			return;
 		}
-		i++;
 	}
 
 	ProfileSample sample;
@@ -95,7 +92,6 @@ void Profile::End(std::string_view name) noexcept {
 	}
 }
 void Profile::DumpOutputToBuffer() noexcept {
-	unsigned int i = 0;
 
 	g_endProfile = GetExactTime();
 
@@ -135,7 +131,6 @@ void Profile::DumpOutputToBuffer() noexcept {
 		line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} : {}\n", aveTime, minTime, maxTime, sample.iProfileInstances,
 			indentedName);
 		textBox.append(line); // Send the line to text buffer
-		i++;
 	}
 
 	{ // Reset samples for next frame
@@ -144,7 +139,6 @@ void Profile::DumpOutputToBuffer() noexcept {
 	}
 }
 void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
-	unsigned int i = 0;
 	float oldRatio;
 	float newRatio = 0.8f * GetElapsedTime();
 	if (newRatio > 1.0f) {
@@ -174,7 +168,6 @@ void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
 			}
 			return;
 		}
-		i++;
 	}
 	ProfileSampleHistory his;
 	his.szName = name;
