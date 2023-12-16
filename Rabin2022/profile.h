@@ -18,6 +18,5 @@ namespace Profile {
     void End(std::string_view name) noexcept;
     void DumpOutputToBuffer() noexcept;
     void StoreInHistory(std::string_view name, float percent) noexcept;
-    void GetFromHistory(std::string_view name, float* ave, float* min, float* max) noexcept;
     void Draw() noexcept;
 };

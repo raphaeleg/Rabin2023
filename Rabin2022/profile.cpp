@@ -26,6 +26,22 @@ struct ProfileSampleHistory {
 	float min;       // Minimum time per frame (percentage)
 	float max;       // Maximum time per frame (percentage)
 };
+
+struct Measurements {
+	float ave;       // Average time per frame (percentage)
+	float min;       // Minimum time per frame (percentage)
+	float max;       // Maximum time per frame (percentage)
+
+	Measurements(float a, float mn, float mx) : ave(a), min(mn), max(mx) {}
+};
+static Measurements GetFromHistory(std::string_view name) noexcept {
+	for (auto& his : history) {
+		if (name == his.name) { // Found the sample
+			return Measurements(his.ave, his.min, his.max);
+		}
+	}
+	return Measurements(0.0f, 0.0f, 0.0f);
+}
 std::vector<ProfileSample> samples;
 std::vector <ProfileSampleHistory> history;
 float startProfile = 0.0f;
@@ -119,7 +135,7 @@ void Profile::DumpOutputToBuffer() noexcept {
 
 		// Add new measurement into the history and get the ave, min, and max
 		StoreInHistory(sample.name, percentTime);
-		GetFromHistory(sample.name, &aveTime, &minTime, &maxTime);
+		Measurements measure = GetFromHistory(sample.name);
 
 
 		indentedName = sample.name;
@@ -128,7 +144,7 @@ void Profile::DumpOutputToBuffer() noexcept {
 			indentedName = name;
 		}
 
-		line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} : {}\n", aveTime, minTime, maxTime, sample.instances,
+		line = std::format("{:3.1f} : {:3.1f} : {:3.1f} : {:>3} : {}\n", measure.ave, measure.min, measure.max, sample.instances,
 			indentedName);
 		textBox.append(line); // Send the line to text buffer
 	}
@@ -174,17 +190,6 @@ void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
 	his.ave = his.min = his.max = percent;
 	history.push_back(his);
 
-}
-void Profile::GetFromHistory(std::string_view name, float* ave, float* min, float* max) noexcept {
-	for (auto& his : history) {
-		if (name == his.name) { // Found the sample
-			*ave = his.ave;
-			*min = his.min;
-			*max = his.max;
-			return;
-		}
-	}
-	*ave = *min = *max = 0.0f;
 }
 void Profile::Draw() noexcept {
 	if (!textBox.empty()) {
