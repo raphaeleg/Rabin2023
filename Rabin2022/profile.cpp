@@ -25,6 +25,7 @@ struct ProfileSampleHistory {
 	float ave;       // Average time per frame (percentage)
 	float min;       // Minimum time per frame (percentage)
 	float max;       // Maximum time per frame (percentage)
+	ProfileSampleHistory(std::string_view n, float a, float mn, float mx) : name(n), ave(a), min(mn), max(mx) {}
 };
 
 struct Measurements {
@@ -185,10 +186,7 @@ void Profile::StoreInHistory(std::string_view name, float percent) noexcept {
 			return;
 		}
 	}
-	ProfileSampleHistory his;
-	his.name = name;
-	his.ave = his.min = his.max = percent;
-	history.push_back(his);
+	history.push_back(ProfileSampleHistory(name, percent, percent, percent));
 
 }
 void Profile::Draw() noexcept {
