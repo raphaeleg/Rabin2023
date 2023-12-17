@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
-struct ProfileSample {
+struct ProfileSample { // would consider moving structs to another file
 	unsigned int instances; // # of times ProfileBegin called
 	int openProfiles;              // # of times ProfileBegin w/o ProfileEnd
 	std::string name{};               // Name of sample
@@ -38,23 +38,27 @@ float startProfile = 0.0f;
 float endProfile = 0.0f;
 std::string textBox = "";
 
+static float measurementFormula(float x, float oldRatio, float newRatio, float percent) noexcept {
+	return (x * oldRatio) + (percent * newRatio);
+}
 static Measurements StoreInHistory(std::string_view name, float percent) noexcept {
 	float newRatio = std::clamp(0.8f * GetElapsedTime(), 0.0f, 1.0f);
 	float oldRatio = 1.0f - newRatio;
 
 	auto his = std::ranges::find_if(history,
 		[name](const ProfileSampleHistory& h) { return h.name == name; });
-	
+
 	if (his == std::end(history)) {
 		history.push_back(ProfileSampleHistory(name, percent, percent, percent));
 		return Measurements(percent, percent, percent);
 	}
-	his->ave = (his->ave * oldRatio) + (percent * newRatio);
-	his->min = std::clamp((his->min * oldRatio) + (percent * newRatio), 0.0f, percent);
-	his->max = std::clamp((his->max * oldRatio) + (percent * newRatio), 0.0f, percent);
+
+	his->ave = measurementFormula(his->ave, oldRatio, newRatio, percent);
+	his->min = std::clamp(measurementFormula(his->min, oldRatio, newRatio, percent), 0.0f, percent);
+	his->max = std::clamp(measurementFormula(his->max, oldRatio, newRatio, percent), 0.0f, percent);
 	return Measurements(his->ave, his->min, his->max);
 }
-static std::string addIndentations(std::string_view name, size_t level) {
+static std::string addIndentations(std::string_view name, size_t level) noexcept {
 	std::string indents("\t", level);
 	return indents.append(name);
 }
@@ -64,7 +68,7 @@ void Profile::Init() noexcept {
 void Profile::Begin(std::string_view name) noexcept {
 	auto sample = std::ranges::find_if(samples,
 		[name](const ProfileSample& s) { return s.name == name; });
-	
+
 	if (sample == std::end(samples)) {
 		samples.push_back(ProfileSample(1, 1, name, GetExactTime(), 0.0f, 0.0f, 0));
 		return;
@@ -86,8 +90,8 @@ static auto& GetParentIndex() noexcept {
 void Profile::End(std::string_view name) noexcept {
 	auto sample = std::ranges::find_if(samples,
 		[name](const ProfileSample& s) { return s.name == name; });
-	
 	if (sample == std::end(samples)) { return; }
+
 	float duration = GetExactTime() - sample->startTime;
 	sample->openProfiles--;
 	sample->numParents = std::count_if(samples.begin(), samples.end(), [](auto& s) noexcept { return s.openProfiles > 0; });
@@ -99,14 +103,7 @@ void Profile::End(std::string_view name) noexcept {
 		parent.childrenSampleTime += duration;
 	}
 }
-static std::string GetSampleDataText(ProfileSample sample) {
-	if (sample.openProfiles < 0) {
-		assert(!"ProfileEnd() called without a ProfileBegin()");
-	}
-	else if (sample.openProfiles > 0) {
-		assert(!"ProfileBegin() called without a ProfileEnd()");
-	}
-
+static std::string GetSampleDataText(ProfileSample sample) noexcept {
 	float sampleTime = sample.accumulator - sample.childrenSampleTime;
 	float percentTime = (sampleTime / (endProfile - startProfile)) * 100.0f;
 	Measurements measure = StoreInHistory(sample.name, percentTime);
@@ -121,6 +118,12 @@ void Profile::DumpOutputToBuffer() noexcept {
 	textBox.append("  Ave :   Min :   Max :   # : Profile Name\n");
 	textBox.append("--------------------------------------------\n");
 	for (auto& sample : samples) {
+		if (sample.openProfiles < 0) {
+			assert(!"ProfileEnd() called without a ProfileBegin()");
+		}
+		else if (sample.openProfiles > 0) {
+			assert(!"ProfileBegin() called without a ProfileEnd()");
+		}
 		textBox.append(GetSampleDataText(sample));
 	}
 	samples.clear();
